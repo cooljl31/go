@@ -6,6 +6,7 @@ import (
 	"github.com/stellar/go/services/horizon/internal/db2"
 	"github.com/stellar/go/services/horizon/internal/test"
 	"github.com/stellar/go/xdr"
+	"fmt"
 )
 
 func TestTradeQueries(t *testing.T) {
@@ -45,4 +46,16 @@ func TestTradeQueries(t *testing.T) {
 	tt.Assert.Equal(xdr.Int64(2000000000), trades[0].BaseAmount)
 	tt.Assert.Equal(xdr.Int64(1000000000), trades[0].CounterAmount)
 	tt.Assert.Equal(true, trades[0].BaseIsSeller)
+
+	//EXPERIMENTAL
+	var tradeAggs []TradeAggregation
+	tradesQ := q.BucketTradesForAssetPair(1, 2, 5000)
+	tradesQ.SelectAggregateByBucket(&tradeAggs)
+	fmt.Println(tradesQ.Err)
+	fmt.Println(tradeAggs)
+
+	tradesQ = q.BucketTradesForAssetPair(2, 1, 5000)
+	tradesQ.SelectAggregateByBucket(&tradeAggs)
+	fmt.Println(tradesQ.Err)
+	fmt.Println(tradeAggs)
 }

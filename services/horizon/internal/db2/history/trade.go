@@ -6,6 +6,7 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/stellar/go/services/horizon/internal/db2"
+	"time"
 )
 
 // PagingToken returns a cursor for this trade
@@ -16,25 +17,91 @@ func (r *Trade) PagingToken() string {
 // Trades provides a helper to filter rows from the `history_trades` table
 // with pre-defined filters.  See `TradesQ` methods for the available filters.
 func (q *Q) Trades() *TradesQ {
-	return &TradesQ{
+	trades := &TradesQ{
 		parent: q,
 		sql:    selectTrade,
+	}
+	return trades.JoinAccounts().JoinAssets()
+}
+
+// ReverseTrades provides a helper to filter rows from the `history_trades` table
+// with pre-defined filters and reversed base/counter.  See `TradesQ` methods for the available filters.
+func (q *Q) ReverseTrades() *TradesQ {
+	trades := &TradesQ{
+		parent: q,
+		sql:    selectReverseTrade,
+	}
+	return trades.JoinAccounts().JoinAssets()
+}
+
+func (q *Q) BucketTrades(resolution int64) *TradesQ {
+	bucketedLedgerClosedAt := fmt.Sprintf("div(cast((extract(epoch from ledger_closed_at) * 1000 ) as bigint), %d)*%d as timestamp", resolution, resolution)
+	return &TradesQ{
+		parent: q,
+		sql: sq.Select(
+			bucketedLedgerClosedAt,
+			"base_asset_id",
+			"base_amount",
+			"counter_asset_id",
+			"counter_amount",
+			"counter_amount::float/base_amount as price",
+		).From("history_trades"),
+	}
+}
+
+func (q *Q) ReverseBucketTrades(resolution int64) *TradesQ {
+	bucketedLedgerClosedAt := fmt.Sprintf("div(cast((extract(epoch from ledger_closed_at) * 1000 ) as bigint), %d)*%d as timestamp", resolution, resolution)
+
+	return &TradesQ{
+		parent: q,
+		sql: sq.Select(
+			bucketedLedgerClosedAt,
+			"counter_asset_id as base_asset_id",
+			"counter_amount as base_amount",
+			"base_asset_id as counter_asset_id",
+			"base_amount as counter_amount",
+			"base_amount::float/counter_amount as price",
+		).From("history_trades"),
 	}
 }
 
 // TradesForAssetPair provides a helper to filter rows from the `history_trades` table
 // with the base filter of a specific asset pair.  See `TradesQ` methods for further available filters.
 func (q *Q) TradesForAssetPair(baseAssetId int64, counterAssetId int64) *TradesQ {
-	var sql sq.SelectBuilder
 	if baseAssetId < counterAssetId {
-		sql = selectTrade.Where(sq.Eq{"base_asset_id": baseAssetId, "counter_asset_id": counterAssetId})
-	} else {
-		sql = selectReverseTrade.Where(sq.Eq{"base_asset_id": counterAssetId, "counter_asset_id": baseAssetId})
+		return q.Trades().forAssetPair(baseAssetId, counterAssetId)
 	}
-	return &TradesQ{
-		parent: q,
-		sql:    sql,
+	return q.ReverseTrades().forAssetPair(counterAssetId, baseAssetId)
+}
+
+func (q *Q) BucketTradesForAssetPair(baseAssetId int64, counterAssetId int64, bucketResolution int64) *TradesQ {
+	if baseAssetId < counterAssetId {
+		return q.BucketTrades(bucketResolution).forAssetPair(baseAssetId, counterAssetId)
 	}
+	return q.ReverseBucketTrades(bucketResolution).forAssetPair(counterAssetId, baseAssetId)
+}
+
+func (q *TradesQ) SelectAggregateByBucket(dest interface{}) error {
+	s := sq.Select(
+		"timestamp",
+		"count(*) as count",
+		"sum(base_amount) as base_volume",
+		"sum(counter_amount) as counter_volume",
+		"avg(price) as avg",
+		"max(price) as high",
+		"min(price) as low",
+		"first(price) as open",
+		"last(price) as close").
+		FromSelect(q.sql, "htrd").
+		GroupBy("timestamp")
+
+	return q.parent.Select(dest, s)
+}
+
+//Filter by asset pair. This function is private to ensure that correct order and proper select statement are coupled
+func (q *TradesQ) forAssetPair(baseAssetId int64, counterAssetId int64) *TradesQ {
+	q.sql = q.sql.Where(sq.Eq{"base_asset_id": baseAssetId, "counter_asset_id": counterAssetId})
+	return q
 }
 
 // Page specifies the paging constraints for the query being built by `q`.
@@ -89,6 +156,30 @@ func (q *TradesQ) Select(dest interface{}) error {
 	return q.Err
 }
 
+func (q *TradesQ) JoinAccounts() *TradesQ {
+	q.sql = q.sql.
+		Join("history_accounts base_accounts ON base_account_id = base_accounts.id").
+		Join("history_accounts counter_accounts ON counter_account_id = counter_accounts.id")
+	return q
+}
+
+func (q *TradesQ) JoinAssets() *TradesQ {
+	q.sql = q.sql.
+		Join("history_assets base_assets ON base_asset_id = base_assets.id").
+		Join("history_assets counter_assets ON counter_asset_id = counter_assets.id")
+	return q
+}
+
+func (q *TradesQ) FromStartTime(from time.Time) *TradesQ {
+	q.sql = q.sql.Where(sq.Gt{"ledger_closed_at": from})
+	return q
+}
+
+func (q *TradesQ) FromEndTime(to time.Time) *TradesQ {
+	q.sql = q.sql.Where(sq.Lt{"ledger_closed_at": to})
+	return q
+}
+
 var selectTrade = sq.Select(
 	"history_operation_id",
 	"htrd.\"order\"",
@@ -105,11 +196,7 @@ var selectTrade = sq.Select(
 	"counter_assets.asset_issuer as counter_asset_issuer",
 	"htrd.counter_amount",
 	"htrd.base_is_seller",
-).From("history_trades htrd").
-	Join("history_accounts base_accounts ON base_account_id = base_accounts.id").
-	Join("history_accounts counter_accounts ON counter_account_id = counter_accounts.id").
-	Join("history_assets base_assets ON base_asset_id = base_assets.id").
-	Join("history_assets counter_assets ON counter_asset_id = counter_assets.id")
+).From("history_trades htrd")
 
 var selectReverseTrade = sq.Select(
 	"history_operation_id",
@@ -127,8 +214,4 @@ var selectReverseTrade = sq.Select(
 	"base_assets.asset_issuer as counter_asset_issuer",
 	"htrd.counter_amount",
 	"NOT(htrd.base_is_seller) as base_is_seller",
-).From("history_trades htrd").
-	Join("history_accounts base_accounts ON base_account_id = base_accounts.id").
-	Join("history_accounts counter_accounts ON counter_account_id = counter_accounts.id").
-	Join("history_assets base_assets ON base_asset_id = base_assets.id").
-	Join("history_assets counter_assets ON counter_asset_id = counter_assets.id")
+).From("history_trades htrd")
