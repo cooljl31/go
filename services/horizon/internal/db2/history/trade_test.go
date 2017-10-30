@@ -7,6 +7,8 @@ import (
 	"github.com/stellar/go/services/horizon/internal/test"
 	"github.com/stellar/go/xdr"
 	"fmt"
+
+	sq "github.com/Masterminds/squirrel"
 )
 
 func TestTradeQueries(t *testing.T) {
@@ -58,4 +60,61 @@ func TestTradeQueries(t *testing.T) {
 	tradesQ.SelectAggregateByBucket(&tradeAggs)
 	fmt.Println(tradesQ.Err)
 	fmt.Println(tradeAggs)
+}
+
+var tradeInserter = sq.Insert("history_trades").Columns(
+	"history_operation_id",
+	"\"order\"",
+	"ledger_closed_at",
+	"offer_id",
+	"base_account_id",
+	"base_asset_id",
+	"base_amount",
+	"counter_account_id",
+	"counter_asset_id",
+	"counter_amount",
+	"base_is_seller",
+)
+
+var assetInserter = sq.Insert("history_assets").Columns(
+	"asset_type",
+	"asset_code",
+	"asset_issuer",
+)
+
+//history_assets (asset_type, asset_code, asset_issuer) VALUES (?,?,?) RETURNING id`,
+
+func insertAsset(assetType string, assetCode string, assetIssuer string) int64 {
+	assetInserter.Values()
+	return 0
+}
+
+func insertTrade() int64 {
+	return 0
+}
+
+func TestTradeAggQueries(t *testing.T) {
+	//tt := test.Start(t)
+	//q := &Q{tt.HorizonSession()}
+	//q.GetCreateAssetID()
+	//
+	//
+	//insertBuilder.Values(
+	//	opid,
+	//	order,
+	//	time.Unix(ledgerClosedAt, 0).UTC(),
+	//	trade.OfferId,
+	//	baseAccountId,
+	//	baseAssetId,
+	//	baseAmount,
+	//	counterAccountId,
+	//	counterAssetId,
+	//	counterAmount,
+	//	soldAssetId < boughtAssetId,
+	//)
+	//
+	//insertBuilder.Into()
+	//
+	//q.TradesForAssetPair()
+
 }
