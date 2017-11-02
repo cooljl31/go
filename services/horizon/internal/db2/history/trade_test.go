@@ -1,14 +1,13 @@
-package history
+package history_test
 
 import (
 	"testing"
 
 	"github.com/stellar/go/services/horizon/internal/db2"
+	. "github.com/stellar/go/services/horizon/internal/db2/history"
+	. "github.com/stellar/go/services/horizon/internal/test/common_trades"
 	"github.com/stellar/go/services/horizon/internal/test"
 	"github.com/stellar/go/xdr"
-	"fmt"
-
-	sq "github.com/Masterminds/squirrel"
 )
 
 func TestTradeQueries(t *testing.T) {
@@ -48,73 +47,66 @@ func TestTradeQueries(t *testing.T) {
 	tt.Assert.Equal(xdr.Int64(2000000000), trades[0].BaseAmount)
 	tt.Assert.Equal(xdr.Int64(1000000000), trades[0].CounterAmount)
 	tt.Assert.Equal(true, trades[0].BaseIsSeller)
-
-	//EXPERIMENTAL
-	var tradeAggs []TradeAggregation
-	tradesQ := q.BucketTradesForAssetPair(1, 2, 5000)
-	tradesQ.SelectAggregateByBucket(&tradeAggs)
-	fmt.Println(tradesQ.Err)
-	fmt.Println(tradeAggs)
-
-	tradesQ = q.BucketTradesForAssetPair(2, 1, 5000)
-	tradesQ.SelectAggregateByBucket(&tradeAggs)
-	fmt.Println(tradesQ.Err)
-	fmt.Println(tradeAggs)
-}
-
-var tradeInserter = sq.Insert("history_trades").Columns(
-	"history_operation_id",
-	"\"order\"",
-	"ledger_closed_at",
-	"offer_id",
-	"base_account_id",
-	"base_asset_id",
-	"base_amount",
-	"counter_account_id",
-	"counter_asset_id",
-	"counter_amount",
-	"base_is_seller",
-)
-
-var assetInserter = sq.Insert("history_assets").Columns(
-	"asset_type",
-	"asset_code",
-	"asset_issuer",
-)
-
-//history_assets (asset_type, asset_code, asset_issuer) VALUES (?,?,?) RETURNING id`,
-
-func insertAsset(assetType string, assetCode string, assetIssuer string) int64 {
-	assetInserter.Values()
-	return 0
-}
-
-func insertTrade() int64 {
-	return 0
 }
 
 func TestTradeAggQueries(t *testing.T) {
-	//tt := test.Start(t)
-	//q := &Q{tt.HorizonSession()}
-	//q.GetCreateAssetID()
-	//
-	//
-	//insertBuilder.Values(
-	//	opid,
-	//	order,
-	//	time.Unix(ledgerClosedAt, 0).UTC(),
-	//	trade.OfferId,
-	//	baseAccountId,
-	//	baseAssetId,
-	//	baseAmount,
-	//	counterAccountId,
-	//	counterAssetId,
-	//	counterAmount,
-	//	soldAssetId < boughtAssetId,
-	//)
-	//
-	//insertBuilder.Into()
-	//
-	//q.TradesForAssetPair()
+	tt := test.Start(t).Scenario("base")
+	defer tt.Finish()
 
+	const startMillis = int64(0)
+	const numOfTrades = 10
+	const delta = int64(60 * 1000)
+
+	ass1, ass2 := PopulateTestTrades(tt, startMillis, numOfTrades, delta)
+	q := &Q{tt.HorizonSession()}
+
+	//test one bucket for all
+	var aggs []TradeAggregation
+
+	expected := TradeAggregation{startMillis, 10, 5500, 38500, 5.5, 10, 1, 1, 10}
+	err := q.BucketTradesForAssetPairAssets(ass1, ass2, 1000*60*60).
+		FromStartTime(startMillis).
+		FromEndTime(startMillis + delta*(numOfTrades+1)).
+		SelectAggregateByBucket(&aggs)
+	if tt.Assert.NoError(err) {
+		if tt.Assert.Len(aggs, 1) {
+			tt.Assert.Equal(expected, aggs[0])
+		}
+	}
+
+	//test one bucket for all - reverse
+	expected = TradeAggregation{startMillis, 10, 38500, 5500, 0.2928968253968254, 1, 0.1, 1, 0.1}
+	err = q.BucketTradesForAssetPairAssets(ass2, ass1, 1000*60*60).
+		FromStartTime(startMillis).
+		FromEndTime(startMillis + delta*(numOfTrades+1)).
+		SelectAggregateByBucket(&aggs)
+	if tt.Assert.NoError(err) {
+		if tt.Assert.Len(aggs, 1) {
+			tt.Assert.Equal(expected, aggs[0])
+		}
+	}
+
+	//Test one bucket each, sample test one aggregation
+	expected = TradeAggregation{240000, 1, 500, 2500, 5, 5, 5, 5, 5}
+	err = q.BucketTradesForAssetPairAssets(ass1, ass2, 1000*60).
+		FromStartTime(startMillis).
+		FromEndTime(startMillis + delta*(numOfTrades+1)).
+		SelectAggregateByBucket(&aggs)
+	if tt.Assert.NoError(err) {
+		if tt.Assert.Len(aggs, 10) {
+			tt.Assert.Equal(aggs[4], expected)
+		}
+	}
+
+	//Test two bucket each, sample test one aggregation
+	expected = TradeAggregation{240000, 2, 1100, 6100, 5.5, 6, 5, 5, 6}
+	err = q.BucketTradesForAssetPairAssets(ass1, ass2, 1000*60*2).
+		FromStartTime(startMillis).
+		FromEndTime(startMillis + delta*(numOfTrades+1)).
+		SelectAggregateByBucket(&aggs)
+	if tt.Assert.NoError(err) {
+		if tt.Assert.Len(aggs, 5) {
+			tt.Assert.Equal(aggs[2], expected)
+		}
+	}
 }

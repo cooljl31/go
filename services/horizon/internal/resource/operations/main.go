@@ -91,7 +91,7 @@ func New(
 	return
 }
 
-// Base represents the common attributes of an operation resource
+// Base represents the tradecommon attributes of an operation resource
 type Base struct {
 	Links struct {
 		Self        hal.Link `json:"self"`

@@ -70,7 +70,7 @@ type OrderBookSummaryPriceLevel struct {
 // counter currency
 type OrderBookSummary []OrderBookSummaryPriceLevel
 
-// Q is a helper struct on which to hang common queries against a stellar
+// Q is a helper struct on which to hang common_trades queries against a stellar
 // core database.
 type Q struct {
 	*db.Session

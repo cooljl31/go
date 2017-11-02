@@ -76,11 +76,19 @@ func (q *Q) TradesForAssetPair(baseAssetId int64, counterAssetId int64) *TradesQ
 	return q.ReverseTrades().forAssetPair(counterAssetId, baseAssetId)
 }
 
-func (q *Q) BucketTradesForAssetPair(baseAssetId int64, counterAssetId int64, bucketResolution int64) *TradesQ {
+func (q *Q) 	BucketTradesForAssetPair(baseAssetId int64, counterAssetId int64, bucketResolution int64) *TradesQ {
 	if baseAssetId < counterAssetId {
 		return q.BucketTrades(bucketResolution).forAssetPair(baseAssetId, counterAssetId)
 	}
 	return q.ReverseBucketTrades(bucketResolution).forAssetPair(counterAssetId, baseAssetId)
+}
+
+//TODO: THINK.
+func (q *Q) BucketTradesForAssetPairAssets(baseAsset xdr.Asset, counterAsset xdr.Asset, bucketResolution int64) *TradesQ {
+	baseAssetId, _ := q.GetCreateAssetID(baseAsset)
+	counterAssetId, _ := q.GetCreateAssetID(counterAsset)
+
+	return q.BucketTradesForAssetPair(baseAssetId, counterAssetId, bucketResolution)
 }
 
 func (q *TradesQ) SelectAggregateByBucket(dest interface{}) error {
@@ -172,13 +180,13 @@ func (q *TradesQ) JoinAssets() *TradesQ {
 	return q
 }
 
-func (q *TradesQ) FromStartTime(from time.Time) *TradesQ {
-	q.sql = q.sql.Where(sq.Gt{"ledger_closed_at": from})
+func (q *TradesQ) FromStartTime(from int64) *TradesQ {
+	q.sql = q.sql.Where(sq.GtOrEq{"ledger_closed_at": toTimestamp(from)})
 	return q
 }
 
-func (q *TradesQ) FromEndTime(to time.Time) *TradesQ {
-	q.sql = q.sql.Where(sq.Lt{"ledger_closed_at": to})
+func (q *TradesQ) FromEndTime(to int64) *TradesQ {
+	q.sql = q.sql.Where(sq.Lt{"ledger_closed_at": toTimestamp(to)})
 	return q
 }
 
@@ -274,7 +282,7 @@ func (q *Q) InsertTrade(
 	sql := tradesInsert.Values(
 		opid,
 		order,
-		time.Unix(ledgerClosedAt, 0).UTC(),
+		time.Unix(ledgerClosedAt/1000,0).UTC(),
 		trade.OfferId,
 		baseAccountId,
 		baseAssetId,

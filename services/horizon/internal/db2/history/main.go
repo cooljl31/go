@@ -199,7 +199,7 @@ type OperationsQ struct {
 	sql    sq.SelectBuilder
 }
 
-// Q is a helper struct on which to hang common queries against a history
+// Q is a helper struct on which to hang common_trades queries against a history
 // portion of the horizon database.
 type Q struct {
 	*db.Session
@@ -302,4 +302,9 @@ func (q *Q) OldestOutdatedLedgers(dest interface{}, currentVersion int) error {
 		WHERE importer_version < $1
 		ORDER BY sequence ASC
 		LIMIT 1000000`, currentVersion)
+}
+
+// Utility function to translate millis since epoch int64 to a UTC timestamp struct
+func toTimestamp(millis int64) time.Time{
+	return time.Unix(millis/1000, millis%100 * int64(time.Millisecond)).UTC()
 }

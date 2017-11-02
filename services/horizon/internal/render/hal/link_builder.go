@@ -26,7 +26,7 @@ func (lb *LinkBuilder) Link(parts ...string) Link {
 }
 
 // PagedLink creates a link using the `Link` method and
-// appends the common paging options
+// appends the tradecommon paging options
 func (lb *LinkBuilder) PagedLink(parts ...string) Link {
 	nl := lb.Link(parts...)
 	nl.Href += StandardPagingOptions

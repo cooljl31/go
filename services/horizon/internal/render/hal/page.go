@@ -26,7 +26,7 @@ func (p *BasePage) Init() {
 	}
 }
 
-// Page represents the common page configuration (i.e. has self, next, and prev
+// Page represents the common_trades page configuration (i.e. has self, next, and prev
 // links) and has a helper method `PopulateLinks` to automate their
 // initialization.
 type Page struct {
@@ -43,7 +43,7 @@ type Page struct {
 	Cursor   string `json:"-"`
 }
 
-// PopulateLinks sets the common links for a page.
+// PopulateLinks sets the common_trades links for a page.
 func (p *Page) PopulateLinks() {
 	p.Init()
 	fmts := p.BasePath + "?order=%s&limit=%d&cursor=%s"

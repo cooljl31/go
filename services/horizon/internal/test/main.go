@@ -24,7 +24,7 @@ type StaticMockServer struct {
 	LastRequest *http.Request
 }
 
-// T provides a common set of functionality for each test in horizon
+// T provides a common_trades set of functionality for each test in horizon
 type T struct {
 	T          *testing.T
 	Assert     *assert.Assertions

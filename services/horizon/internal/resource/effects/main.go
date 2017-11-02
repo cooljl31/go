@@ -120,7 +120,7 @@ func New(
 	return
 }
 
-// Base provides the common structure for any effect resource effect.
+// Base provides the common_trades structure for any effect resource effect.
 type Base struct {
 	Links struct {
 		Operation hal.Link `json:"operation"`

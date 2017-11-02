@@ -26,7 +26,7 @@ type Base struct {
 	isSetup bool
 }
 
-// Prepare established the common attributes that get used in nearly every
+// Prepare established the common_trades attributes that get used in nearly every
 // action.  "Child" actions may override this method to extend action, but it
 // is advised you also call this implementation to maintain behavior.
 func (base *Base) Prepare(c web.C, w http.ResponseWriter, r *http.Request) {

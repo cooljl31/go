@@ -70,7 +70,7 @@ func TestTradeActions_Index(t *testing.T) {
 	}
 }
 
-func TestTradeActions_Aggregation(t *testing.T) {
+func TestTradeActions_AggregationBasic(t *testing.T) {
 	ht := StartHTTPTest(t, "trades")
 	defer ht.Finish()
 

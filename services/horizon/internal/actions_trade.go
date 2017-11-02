@@ -9,7 +9,6 @@ import (
 	"github.com/stellar/go/services/horizon/internal/resource"
 	"github.com/stellar/go/xdr"
 	"net/url"
-	"time"
 )
 
 type TradeIndexAction struct {
@@ -149,13 +148,13 @@ func (action *TradeAggregateAction) loadRecords() {
 			action.StartTimeFilter =
 				int64(action.StartTimeFilter/action.ResolutionFilter) * (action.ResolutionFilter + 1)
 		}
-		bucketedTrades.FromStartTime(time.Unix(action.StartTimeFilter, 0))
+		bucketedTrades.FromStartTime(action.StartTimeFilter)
 	}
 
 	if action.EndTimeFilter > 0 {
 		// Pull upper boundary to previous bucket start
 		action.EndTimeFilter = int64(action.EndTimeFilter/action.ResolutionFilter) * action.ResolutionFilter
-		bucketedTrades.FromEndTime(time.Unix(action.EndTimeFilter, 0))
+		bucketedTrades.FromEndTime(action.EndTimeFilter)
 	}
 
 	action.Err = bucketedTrades.SelectAggregateByBucket(&action.Records)
