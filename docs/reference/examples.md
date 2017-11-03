@@ -25,7 +25,7 @@ func main() {
 
 	// seed: SDLJZXOSOMKPWAK4OCWNNVOYUEYEESPGCWK53PT7QMG4J4KGDAUIL5LG
 	to := "GA3A7AD7ZR4PIYW6A52SP6IK7UISESICPMMZVJGNUTVIZ5OUYOPBTK6X"
-
+ 
 	tx := b.Transaction(
 		b.SourceAccount{from},
 		b.AutoSequence{horizon.DefaultTestNetClient},
@@ -34,7 +34,9 @@ func main() {
 			b.NativeAmount{"0.1"},
 		),
 	)
-
+	// TestNetworkPassphrase is the pass phrase used for every transaction intended for the SDF-run test network
+	tx.NetworkPassphrase = network.TestNetworkPassphrase
+	
 	txe := tx.Sign(from)
 	txeB64, err := txe.Base64()
 
